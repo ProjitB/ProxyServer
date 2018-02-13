@@ -112,6 +112,7 @@ def cache_check(url, conn, client_req):
 
     if cache[orig_url]["calls"] == 1:
         cache[orig_url]["time"] == time.time()
+        print "Updating cache, and sending"
         with open(url_file, 'wb') as f:
             while True:
                 data = sock.recv(1024)
