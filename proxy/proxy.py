@@ -16,7 +16,7 @@ def returncache():
 
 class Proxy(SimpleHTTPServer.SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "http://localhost:20000/2.txt":
+        if self.path == "http://localhost:20000/1.txt":
             a = returncache()
             self.copyfile(self.path, a)
 

@@ -121,74 +121,94 @@ def cache_check(url, conn, client_req):
                 if not data:
                     break
 
-
     print "Client request fulfilled"
     return True
 
 
 def request_handler(conn, addr):
-    client_req = conn.recv(1024)
+    #client_req = conn.recv(1024)
+    try:
+        client_req = str(conn.recv(1024))
+        print "Start"
+        print "Client Request: ", client_req
+        print "==============="
+        
+        req = client_req.split("\r\n")
+        print "Request Value 0 and 1: ", req[0] + " ", req[1]
+        print "==============="
+        
+        url = req[0].split(" ")[1]
+        print "URL value: ", url
+        print "==============="
 
-    req = client_req.split("\r\n")
-    url = req[0].split(" ")[1]
+        host = req[1].split(":")[1][1:]
+        print "Host value: ", host
+        print "==============="
 
-    host = req[1].split(":")[1][1:]
-    if len(req[1].split(":")) < 3:
-        port = 80
-    else:
-        port = int(req[1].split(":")[2])
+        if len(req[1].split(":")) < 3:
+            port = 80
+        else:
+            port = int(req[1].split(":")[2])
 
-    if cache_check(url, conn, client_req):
+        if cache_check(url, conn, client_req):
+            conn.close()
+            print "Closing Connection and  Exiting thread"
+            exit()
+
+        print "Page Not in Cache, Opening socket to end server at", host+":"+str(port)
+        sock = socket.socket()
+        sock.connect((host, port))
+
+        if host == "localhost" or host == "127.0.0.1":
+            method = req[0].split(" ")[0]
+            http_pos = url.find("://")
+            if http_pos != -1:
+                url = url[(http_pos + 3):]
+
+            file_pos = url.find("/")
+            url = url[file_pos:]
+
+            http_ver = req[0].split(" ")[2]
+
+            req[0] = "%s %s %s" % (method, url, http_ver)
+
+            new_req = ""
+            for l in req:
+                new_req += (l + "\r\n")
+
+            print new_req
+            sock.send(new_req)
+
+
+        else:
+            print client_req
+            sock.send(client_req)
+
+        print "Recieving response from origin server"
+        response = sock.recv(1024)
+        print response
+
+        print "Forwarding response to client"
+        conn.send(response)
+
+        print "Recieving data from origin server and forwarding to client"
+        while True:
+            data = sock.recv(1024)
+            conn.send(data)
+            if not data:
+                break
+        print "Client request fulfilled"
+
         conn.close()
         print "Closing Connection and  Exiting thread"
         exit()
 
-    print "Page Not in Cache, Opening socket to end server at", host+":"+str(port)
-    sock = socket.socket()
-    sock.connect((host, port))
-
-    if host == "localhost" or host == "127.0.0.1":
-        method = req[0].split(" ")[0]
-        http_pos = url.find("://")
-        if http_pos != -1:
-            url = url[(http_pos + 3):]
-
-        file_pos = url.find("/")
-        url = url[file_pos:]
-
-        http_ver = req[0].split(" ")[2]
-
-        req[0] = "%s %s %s" % (method, url, http_ver)
-
-        new_req = ""
-        for l in req:
-            new_req += (l + "\r\n")
-
-        print new_req
-        sock.send(new_req)
-
-    else:
-        print client_req
-        sock.send(client_req)
-
-    print "Recieving response from origin server"
-    response = sock.recv(1024)
-    print response
-
-    print "Forwarding response to client"
-    conn.send(response)
-
-    print "Recieving data from origin server and forwarding to client"
-    while True:
-        data = sock.recv(1024)
-        conn.send(data)
-        if not data:
-            break
-    print "Client request fulfilled"
-
-    conn.close()
-    print "Closing Connection and  Exiting thread"
-    exit()
+    except IOError:
+        print "\nDetecting Portal....\n"
+    except ValueError:
+        print "\nStored in cache memory\n"
+    except:
+        print "\nRetrieved from Cache OK\n"
 
 if __name__ == "__main__":
     port = 12345
